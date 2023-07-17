@@ -1,0 +1,46 @@
+{
+  "name": "admixture",
+  "version": "0.0.0",
+  "description": "A Fusion like library for the web",
+  "main": "./dist/admixture.cjs",
+  "module": "./dist/admixture.mjs",
+  "exports": {
+    ".": {
+      "require": "./dist/admixture.cjs",
+      "import": "./dist/admixture.mjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "test": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daimond113/admixture.git"
+  },
+  "author": {
+    "name": "daimond113",
+    "email": "contact@daimond113.com",
+    "url": "https://www.daimond113.com"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/daimond113/admixture/issues"
+  },
+  "homepage": "https://github.com/daimond113/admixture#readme",
+  "devDependencies": {
+    "@testing-library/dom": "^9.3.1",
+    "@testing-library/jest-dom": "^5.16.5",
+    "@types/node": "^20.4.2",
+    "@types/testing-library__jest-dom": "^5.14.8",
+    "@vitest/coverage-v8": "^0.33.0",
+    "happy-dom": "^10.5.1",
+    "typescript": "^5.1.6",
+    "vite": "^4.4.4",
+    "vite-plugin-dts": "^3.3.1",
+    "vitest": "^0.33.0"
+  },
+  "dependencies": {
+    "mitt": "^3.0.1"
+  }
+}
