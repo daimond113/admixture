@@ -2,6 +2,36 @@ import EventEmitter from "mitt"
 
 type CanBeState<T> = T | StateObject<T>
 type ReadState = <T>(state: CanBeState<T>) => T
+type StateObjectCallback<Returns, U extends any[] = []> = (
+	use: ReadState,
+	...args: U
+) => Returns
+type Nullable<T> = T | undefined
+type CustomOptions<T extends HTMLElement> = {
+	[Children]?: CanBeState<
+		CanBeState<Record<PropertyKey, Node> | Node | Node[]>[]
+	>
+	[Ref]?: Value<Nullable<T>>
+	[Cleanup]?: () => void
+	[Parent]?: Node
+}
+type CanBeStateify<T> = {
+	[K in keyof T]: CanBeState<T[K]>
+}
+type HydrateOptions<T extends HTMLElement> = Partial<
+	CanBeStateify<{
+		[K in keyof T as T[K] extends Readonly<any>
+			? never
+			: K]: T[K] extends Function ? never : T[K]
+	}>
+> &
+	CustomOptions<T>
+
+export const Children = Symbol("Children")
+export const Ref = Symbol("Ref")
+export const CreateElementOptions = Symbol("CreateElementOptions")
+export const Cleanup = Symbol("Cleanup")
+export const Parent = Symbol("Parent")
 
 export const peek: ReadState = (state) =>
 	state instanceof StateObject ? state["value"] : state
@@ -27,7 +57,7 @@ function _use<T>(this: StateObject<T>, state: CanBeState<any>) {
 		}
 		const emitter = state["emitter"]
 		emitter.on("changed", handler)
-		dependencies.set(state, handler)
+		dependencies.add(state)
 		emitter.on("destroyed", () => {
 			emitter.off("changed", handler)
 			dependencies.delete(state)
@@ -37,14 +67,9 @@ function _use<T>(this: StateObject<T>, state: CanBeState<any>) {
 	return peek(state)
 }
 
-type StateObjectCallback<Returns, U extends any[] = []> = (
-	use: ReadState,
-	...args: U
-) => Returns
-
 abstract class StateObject<T> {
-	private emitter = EventEmitter<{ changed: T; destroyed: void }>()
-	private dependencies = new Map<StateObject<any>, () => void>()
+	private emitter = EventEmitter<{ changed: void; destroyed: void }>()
+	private dependencies = new Set<StateObject<any>>()
 	protected _value: T
 	protected callback?: StateObjectCallback<T>
 
@@ -54,7 +79,7 @@ abstract class StateObject<T> {
 
 	protected set value(newValue: T) {
 		this._value = newValue
-		this.emitter.emit("changed", newValue)
+		this.emitter.emit("changed")
 	}
 
 	protected destroy() {
@@ -166,29 +191,6 @@ export function ForPairs<
 	})
 }
 
-export const Children = Symbol("Children")
-export const Ref = Symbol("Ref")
-export const CreateElementOptions = Symbol("CreateElementOptions")
-export const Cleanup = Symbol("Cleanup")
-export const Parent = Symbol("Parent")
-
-type ExcludeFunctions<T> = {
-	[K in keyof T]: T[K] extends Function ? never : T[K]
-}
-
-type Nullable<T> = T | undefined
-
-type CustomOptions<
-	T extends HTMLElementTagNameMap[keyof HTMLElementTagNameMap]
-> = {
-	[Children]?: CanBeState<
-		CanBeState<Record<PropertyKey, Node> | Node | Node[]>[]
-	>
-	[Ref]?: Value<Nullable<T>>
-	[Cleanup]?: () => void
-	[Parent]?: Node
-}
-
 // TODO: Should this be a WeakMap?
 const DeletionCallbacks = new Map<Node, () => void>()
 const DeletionObserver = new MutationObserver((changes) => {
@@ -207,16 +209,17 @@ DeletionObserver.observe(document.body, {
 
 export function Hydrate<const T extends HTMLElement>(
 	element: T,
-	options: Partial<ExcludeFunctions<T>> & CustomOptions<T>
+	options: HydrateOptions<T>
 ): T {
-	for (const option of Object.keys(options)) {
-		const value = options[option as keyof typeof options]
-		element[option] = value
-	}
+	new Computed((use) => {
+		for (const option of Object.keys(options)) {
+			const value = options[option as keyof typeof options]
+			// @ts-ignore
+			element[option] = use(value)
+		}
 
-	const children = options[Children]
-	if (children) {
-		new Computed((use) => {
+		const children = options[Children]
+		if (children) {
 			const resolvedChildren = use(children)
 
 			for (const child of resolvedChildren) {
@@ -238,8 +241,8 @@ export function Hydrate<const T extends HTMLElement>(
 					)
 				}
 			}
-		})
-	}
+		}
+	})
 
 	options[Ref]?.set(element)
 	options[Parent]?.appendChild(element)
@@ -253,10 +256,9 @@ export function Hydrate<const T extends HTMLElement>(
 
 export function New<const T extends keyof HTMLElementTagNameMap>(
 	tag: T,
-	options: Partial<ExcludeFunctions<HTMLElementTagNameMap[T]>> &
-		CustomOptions<HTMLElementTagNameMap[T]> & {
-			[CreateElementOptions]?: ElementCreationOptions
-		}
+	options: HydrateOptions<HTMLElementTagNameMap[T]> & {
+		[CreateElementOptions]?: ElementCreationOptions
+	}
 ): HTMLElementTagNameMap[T] {
 	const element = document.createElement(tag, options[CreateElementOptions])
 

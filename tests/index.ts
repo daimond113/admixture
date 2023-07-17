@@ -339,4 +339,18 @@ describe("hydrate", () => {
 			expect(tree).toContainElement(element)
 		}
 	})
+
+	test("it supports state properties", () => {
+		const text = new Value("Value")
+
+		const element = New("p", {
+			textContent: text,
+		})
+
+		expect(element).toHaveTextContent("Value")
+
+		text.set("NewValue")
+
+		expect(element).toHaveTextContent("NewValue")
+	})
 })
