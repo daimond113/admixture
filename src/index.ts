@@ -6,26 +6,18 @@ type StateObjectCallback<Returns, U extends any[] = []> = (
 	use: ReadState,
 	...args: U
 ) => Returns
-type Nullable<T> = T | undefined
-type CustomOptions<T extends HTMLElement> = {
+type HydrateOptions<T extends HTMLElement> = {
+	[K in keyof T as T[K] extends Readonly<any>
+		? never
+		: K]?: T[K] extends Function ? never : CanBeState<T[K]>
+} & {
 	[Children]?: CanBeState<
 		CanBeState<Record<PropertyKey, Node> | Node | Node[]>[]
 	>
-	[Ref]?: Value<Nullable<T>>
+	[Ref]?: Value<T | undefined>
 	[Cleanup]?: () => void
 	[Parent]?: Node
 }
-type CanBeStateify<T> = {
-	[K in keyof T]: CanBeState<T[K]>
-}
-type HydrateOptions<T extends HTMLElement> = Partial<
-	CanBeStateify<{
-		[K in keyof T as T[K] extends Readonly<any>
-			? never
-			: K]: T[K] extends Function ? never : T[K]
-	}>
-> &
-	CustomOptions<T>
 
 export const Children = Symbol("Children")
 export const Ref = Symbol("Ref")

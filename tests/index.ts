@@ -21,6 +21,12 @@ describe("peek", () => {
 
 		expect(peek(value)).toBe(value["value"])
 	})
+
+	test("it correctly returns an item if it's not state", () => {
+		const object = {}
+
+		expect(peek(object)).toBe(object)
+	})
 })
 
 describe("value", () => {
