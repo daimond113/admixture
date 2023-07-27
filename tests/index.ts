@@ -9,6 +9,7 @@ import {
 	Hydrate,
 	New,
 	Observer,
+	OnEvent,
 	Parent,
 	Ref,
 	Value,
@@ -358,5 +359,36 @@ describe("hydrate", () => {
 		text.set("NewValue")
 
 		expect(element).toHaveTextContent("NewValue")
+	})
+
+	test("it correctly handles events", () => {
+		const noop = vi.fn()
+
+		const element = New("button", {
+			[OnEvent("click")]: noop,
+		})
+
+		element.click()
+
+		expect(noop).toHaveBeenCalledOnce()
+	})
+
+	test("it only registers an event once", () => {
+		const element = document.createElement("button")
+
+		const noop = vi.spyOn(element, "addEventListener")
+
+		const text = new Value("Value")
+
+		Hydrate(element, {
+			textContent: text,
+			[OnEvent("click")]: () => undefined,
+		})
+
+		expect(noop).toHaveBeenCalledOnce()
+
+		text.set("NewValue")
+
+		expect(noop).toHaveBeenCalledOnce()
 	})
 })

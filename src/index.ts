@@ -6,6 +6,9 @@ type StateObjectCallback<Returns, U extends any[] = []> = (
 	use: ReadState,
 	...args: U
 ) => Returns
+type OnEventName<T extends keyof HTMLElementEventMap> =
+	`${typeof OnEventPrefix}${T}`
+
 type HydrateOptions<T extends HTMLElement> = {
 	[K in keyof T as T[K] extends Readonly<any>
 		? never
@@ -17,6 +20,12 @@ type HydrateOptions<T extends HTMLElement> = {
 	[Ref]?: Value<T | undefined>
 	[Cleanup]?: () => void
 	[Parent]?: Node
+} & {
+	[K in OnEventName<keyof HTMLElementEventMap>]?: K extends OnEventName<
+		infer EventName extends keyof HTMLElementEventMap
+	>
+		? (event: HTMLElementEventMap[EventName]) => void
+		: never
 }
 
 export const Children = Symbol("Children")
@@ -24,6 +33,14 @@ export const Ref = Symbol("Ref")
 export const CreateElementOptions = Symbol("CreateElementOptions")
 export const Cleanup = Symbol("Cleanup")
 export const Parent = Symbol("Parent")
+
+const OnEventPrefix = "____AdmixtureOnEvent" as const
+
+export function OnEvent<const T extends keyof HTMLElementEventMap>(
+	event: T
+): OnEventName<T> {
+	return `${OnEventPrefix}${event}`
+}
 
 export const peek: ReadState = (state) =>
 	state instanceof StateObject ? state["value"] : state
@@ -203,9 +220,34 @@ export function Hydrate<const T extends HTMLElement>(
 	element: T,
 	options: HydrateOptions<T>
 ): T {
+	const eventListeners = new Map<
+		keyof HTMLElementEventMap,
+		Set<(event: Event) => void>
+	>()
+
 	new Computed((use) => {
 		for (const option of Object.keys(options)) {
 			const value = options[option as keyof typeof options]
+
+			if (typeof option === "string" && option.startsWith(OnEventPrefix)) {
+				const eventName = option.replace(
+					OnEventPrefix,
+					""
+				) as keyof HTMLElementEventMap
+				let registeredEventListeners = eventListeners.get(eventName)
+				if (!registeredEventListeners) {
+					registeredEventListeners = new Set()
+					eventListeners.set(eventName, registeredEventListeners)
+				}
+
+				if (registeredEventListeners.has(value as () => void)) continue
+
+				element.addEventListener(eventName, value as () => void)
+				registeredEventListeners.add(value as () => void)
+
+				continue
+			}
+
 			// @ts-ignore
 			element[option] = use(value)
 		}
