@@ -1,15 +1,15 @@
 import EventEmitter from "mitt"
 
-type CanBeState<T> = T | StateObject<T>
-type ReadState = <T>(state: CanBeState<T>) => T
-type StateObjectCallback<Returns, U extends any[] = []> = (
+export type CanBeState<T> = T | StateObject<T>
+export type ReadState = <T>(state: CanBeState<T>) => T
+export type StateObjectCallback<Returns, U extends any[] = []> = (
 	use: ReadState,
 	...args: U
 ) => Returns
-type OnEventName<T extends keyof HTMLElementEventMap> =
+export type OnEventName<T extends keyof HTMLElementEventMap> =
 	`${typeof OnEventPrefix}${T}`
 
-type HydrateOptions<T extends HTMLElement> = {
+export type HydrateOptions<T extends HTMLElement> = {
 	[K in keyof T as T[K] extends Readonly<any>
 		? never
 		: K]?: T[K] extends Function ? never : CanBeState<T[K]>
@@ -201,20 +201,26 @@ export function ForPairs<
 }
 
 // TODO: Should this be a WeakMap?
-const DeletionCallbacks = new Map<Node, () => void>()
-const DeletionObserver = new MutationObserver((changes) => {
-	for (const change of changes) {
-		change.removedNodes.forEach((node) => {
-			DeletionCallbacks.get(node)?.()
-			DeletionCallbacks.delete(node)
-		})
-	}
-})
+const CleanupCallbacks = new Map<Node, () => void>()
+let CleanupObserverRegistered = false
+const RegisterCleanupObserver = () => {
+	if (CleanupObserverRegistered) return
+	CleanupObserverRegistered = true
 
-DeletionObserver.observe(document.body, {
-	childList: true,
-	subtree: true,
-})
+	const CleanupObserver = new MutationObserver((changes) => {
+		for (const change of changes) {
+			change.removedNodes.forEach((node) => {
+				CleanupCallbacks.get(node)?.()
+				CleanupCallbacks.delete(node)
+			})
+		}
+	})
+
+	CleanupObserver.observe(document.body, {
+		childList: true,
+		subtree: true,
+	})
+}
 
 export function Hydrate<const T extends HTMLElement>(
 	element: T,
@@ -283,7 +289,10 @@ export function Hydrate<const T extends HTMLElement>(
 
 	const cleanup = options[Cleanup]
 
-	if (cleanup) DeletionCallbacks.set(element, cleanup)
+	if (cleanup) {
+		if (!CleanupObserverRegistered) RegisterCleanupObserver()
+		CleanupCallbacks.set(element, cleanup)
+	}
 
 	return element
 }
