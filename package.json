@@ -4,6 +4,7 @@
   "description": "A Fusion like library for the web",
   "main": "./dist/admixture.cjs",
   "module": "./dist/admixture.mjs",
+  "typings": "./dist/index.d.ts",
   "exports": {
     ".": {
       "require": "./dist/admixture.cjs",

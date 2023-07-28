@@ -1,2 +1,5 @@
 tests
 vite.config.ts
+testing-setup.ts
+coverage
+src
