@@ -1,6 +1,6 @@
 {
   "name": "admixture",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A Fusion like library for the web",
   "main": "./dist/admixture.cjs",
   "module": "./dist/admixture.mjs",
